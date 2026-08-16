@@ -44,10 +44,10 @@ You only need four things.
 
 | Part | Qty | Notes | Link |
 |---|---|---|---|
-| Seeed XIAO ESP32-C3 | 1 | Must be the version with the external antenna connector | |
-| HW-123 (MPU-6050) IMU module | 1 | The common little purple or blue breakout board | |
-| 100 mAh 3.7 V LiPo battery | 1 | Small enough to hide behind the boards | |
-| Kapton tape | 1 roll | Polyimide tape. Regular electrical tape will do in a pinch but is bulkier | |
+| Seeed XIAO ESP32-C3 | 1 | Must be the version with the external antenna connector | https://a.co/d/0hMXK4lC |
+| HW-123 (MPU-6050) IMU module | 1 | The common little purple or blue breakout board | https://a.co/d/05waVxTH |
+| 120 mAh 3.7 V LiPo battery | 1 | Small enough to hide behind the boards | https://a.co/d/02xXPYqa |
+| Kapton tape | 1 roll | Polyimide tape. *Regular electrical tape will do* in a pinch but is bulkier | https://a.co/d/0bSA9tBP |
 
 ## Tools
 
@@ -74,7 +74,7 @@ Four connections. That is the whole circuit.
 | SDA | D4 |
 | SCL | D5 |
 
-Keep the wires short, just long enough that the two boards can sit back to back.
+Keep the wires short, just long enough that the two boards can sit back to back (might be worth supergluing the boards together (see image).
 Long wires here are the enemy, because everything has to fit inside a ring later.
 
 Leave the AD0 pin alone. Unconnected it floats low, which sets the sensor address
