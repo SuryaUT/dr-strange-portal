@@ -153,7 +153,11 @@ in USB, reflashing, and possibly rewiring, and all of that is far easier outside
 the case. Put it in for good once the software side works.
 
 ## Images
+
+# Top
 <img width="3024" height="4032" alt="IMG_9396" src="https://github.com/user-attachments/assets/cc567806-0690-4f4f-9f41-0cdc6de72278" />
+
+# Bottom
 <img width="3024" height="4032" alt="IMG_9395" src="https://github.com/user-attachments/assets/bb30a043-feec-4169-80b0-74501fccc527" />
 
 ## Software
