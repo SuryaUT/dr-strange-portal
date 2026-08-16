@@ -55,7 +55,7 @@ You only need four things.
 
 - 3D printer
 - Soldering iron
-- Thin wire (30 AWG works nicely, magnet wire is even better)
+- Thin wire (30 AWG works nicely)
 
 **Optional but recommended**
 
