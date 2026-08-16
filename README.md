@@ -9,8 +9,6 @@ Circle clockwise and the portal opens. Circle counter clockwise and it closes.
 It takes about one and a half turns, roughly 1.2 seconds, and it stays open
 after you drop your hand.
 
-> Add your demo video or GIF here.
-
 Everything here is open source. The electronics are three parts, the case prints
 in one go on any hobby printer, and the whole thing runs on a battery the size of
 a postage stamp.
