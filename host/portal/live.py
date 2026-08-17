@@ -108,7 +108,7 @@ async def run(csv_path: str | None, debug: bool) -> int:
     try:
         async with BleakClient(device) as client:
             await client.start_notify(STREAM_UUID, on_notify)
-            print("live. circle clockwise to open, counter-clockwise to close.")
+            print("live. circle counter-clockwise to open, clockwise to close.")
             print("press Ctrl-C to stop.\n")
             while client.is_connected:
                 await asyncio.sleep(0.5)

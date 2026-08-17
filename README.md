@@ -5,13 +5,18 @@ closes it when you draw one the other way. No buttons, no phone, no cameras
 watching your hand. Just a motion sensor on your finger and a bit of signal
 processing.
 
-Circle clockwise and the portal opens. Circle counter clockwise and it closes.
+Circle counter clockwise and the portal opens. Circle clockwise and it closes,
+the way Strange does it on screen.
 It takes about one and a half turns, roughly 1.2 seconds, and it stays open
 after you drop your hand.
 
 Everything here is open source. The electronics are three parts, the case prints
 in one go on any hobby printer, and the whole thing runs on a battery the size of
 a postage stamp.
+
+The portal itself is a fullscreen window on a second display, meant to be thrown
+onto a wall by a projector, with a live camera feed showing through the middle of
+the ring. Steps 7 to 10 cover that half.
 
 ## How it works
 
@@ -322,8 +327,8 @@ will actually use it.
 python -m portal.live
 ```
 
-Circle clockwise and watch it open. Drop your hand and it stays open. Circle
-counter clockwise to close it.
+Circle counter clockwise and watch it open. Drop your hand and it stays open.
+Circle clockwise to close it.
 
 ```
 OPEN   [############################] 100%  cw    99.8Hz drop 0
@@ -335,6 +340,148 @@ gesture that did not work.
 
 This is the signal that drives the visuals. It is a single number from 0 to 1 plus
 a direction, which is deliberately simple so you can hook it to whatever you like.
+
+### Step 7: The portal animation
+
+The renderer does not draw the portal from scratch. It takes a video of one and
+puts your camera feed in the middle of it.
+
+**The clip is already in `assets/`, and every default is tuned to it.** You do
+not need to find one, trim it, or work out where anything starts and ends. The
+frame numbers in the next step are the ones this file wants, so Step 8 should
+work the moment you run it.
+
+The file is a stock green screen pack by Filmcom Creation, included here so the
+build is reproducible. It holds the same 341-frame animation three times over,
+on black, on green and on blue, and the renderer picks the black take by itself
+by looking at frame corners.
+
+**Why the black take and not the green one.** Fire is additive light with no
+hard edge, so a chroma key has to invent a coverage value for every wispy spark,
+and green spill contaminates orange worse than any other colour pairing. The
+black take is the element as it was originally rendered, so screen blending it
+reproduces the intended composite exactly, with no matte estimation anywhere. It
+also keeps the area outside the ring at true black, which matters in Step 10.
+
+If you swap in a different clip, pass it with `--clip` and expect to re-derive
+the section boundaries in Step 8; they are properties of this particular
+animation, not of portals in general.
+
+### Step 8: See the portal on screen
+
+```bash
+cd host
+python -m portal.render --stats
+```
+
+The first run reads the clip, finds the black take, measures the ring's rim on
+every frame and caches all of it next to the video. That takes about 20 seconds.
+Every run after it starts in well under a second.
+
+You should get a window with your webcam inside the ring. Drive it by hand:
+
+```
+  a / d   scrub the portal closed / open      space  auto open-close
+  f       toggle fullscreen                    q      quit
+```
+
+Three things are happening in that window, and only two of them are "playing".
+These are the defaults, already set for the clip in `assets/`:
+
+| Phase | Frames | Flag | Driven by |
+|---|---|---|---|
+| opening | 0 to 107 | `--open-end` | your hand, rate-limited to the clip's own speed |
+| sustain | 165 to 219 | `--loop-start`, `--loop-end` | time, looping until you close it |
+| closing | 248 to 340 | `--shrink-start`, `--close-end` | time, at 2.5x |
+
+None of those numbers were picked by eye. The loop bounds come from scoring
+every pair of frames in the clip and taking the pair whose motion matches best;
+the closing starts at 248 because that is the first frame where the ring's
+radius actually falls, having sat at 286 to 288 pixels for the thirty frames
+before it.
+
+The sustain loop jumps from frame 219 straight back to 165 with no blending.
+Those two frames differ about as much as any two consecutive frames do, so the
+cut hides inside motion your eye already absorbs 24 times a second. The glow
+eases across over 8 frames while the sparks hard-cut, because dissolving two
+different spark patterns reads as a double exposure and measured *worse* than
+doing nothing.
+
+If you do not have the ring built yet, you can drive the whole thing from one of
+the captures you recorded in Step 3:
+
+```bash
+python -m portal.render --replay ccw_short.csv
+```
+
+### Step 9: Drive the portal from the ring
+
+```bash
+python -m portal.render --ring
+```
+
+Counter-clockwise opens it, clockwise closes it, and a hand that stops leaves it
+where it is. This is the same detector and the same state machine `portal.live`
+prints to the terminal, so anything you tuned in Step 5 applies here unchanged.
+
+Expect roughly two seconds between starting to circle and the portal beginning to
+draw. Most of that is the detector building confidence: the gate alone averages
+over a full carrier period before it will vote.
+
+### Step 10: Put it on a projector
+
+Filming this off a projector onto a wall looks far better than filming a screen,
+and it is the reason for a lot of the choices in the renderer.
+
+Plug the projector in and set Windows to **Extend**, not Duplicate. Then find it:
+
+```bash
+python -m portal.render --list-displays
+```
+
+```
+  --display 0   1440x900 at (0, 0) (primary)
+  --display 1   1920x1080 at (1440, 0)
+```
+
+```bash
+python -m portal.render --ring --fullscreen --display 1
+```
+
+That gives you a borderless fullscreen portal with no title bar and no overlay.
+Leave `--stats` off when you film, and park the mouse pointer on the laptop
+screen so it does not sit in the projection.
+
+**A projector cannot emit black.** It can only stop adding light, so anywhere the
+image is not perfectly zero, the projector paints a faintly grey 16:9 rectangle
+on your wall. This is why the renderer screen blends instead of keying, and why
+it subtracts a small black level from every frame: the clip's "black" background
+is not actually black, and 26 percent of its corner pixels sit at value 1. If you
+still see a rectangle in a dark room, raise `--black-floor` until it goes, at a
+small cost in picture quality.
+
+### What the portal looks onto
+
+By default the disc shows your laptop webcam. Anything OpenCV can open works:
+
+```bash
+python -m portal.render --camera 1                              # another webcam
+python -m portal.render --camera http://192.168.1.42:8080/video # a phone
+python -m portal.render --camera clips/other_room.mp4           # a recording
+```
+
+For a phone, either turn on Windows 11's "use as a connected camera" and pass its
+index, or install any IP-webcam app and pass the URL it gives you. A stream that
+stalls will not freeze the portal: the camera is read on its own thread and the
+animation runs on the clock, so a slow feed just repeats a frame.
+
+Two things decide whether this reads as a hole in space or as a video window.
+**Point the camera somewhere the projection cannot reach**, or it films the wall
+it is being projected onto and you get feedback. And **the destination needs to be
+brighter than the room you are filming in**, or the disc reads as a grey patch.
+
+`--no-mirror` turns off the left-right flip, which you probably want for anything
+that is not a view of yourself.
 
 ## Troubleshooting
 
@@ -388,7 +535,7 @@ table in Step 5. In our experience `circ` is the one most likely to be marginal.
 
 ### Open and close are backwards
 
-Change `OPENING_SENSE` in `host/portal/simulate.py` from `-1` to `1`.
+Change `OPENING_SENSE` in `host/portal/simulate.py` from `1` to `-1`.
 
 This sign is tied to how the ring is physically mounted, since it comes from
 which way the rotation axis points in the sensor's own frame. Flip the board over
@@ -430,6 +577,60 @@ care.
 Melt the tabs on the USB-C side back a little at a time. See Part 6. Small print,
 tight tolerances, entirely normal.
 
+### `no .mp4 found in assets/`
+
+The clip ships in `assets/`, so this usually means a partial clone or a checkout
+that skipped binaries. Pull it again, or point `--clip` at a copy elsewhere.
+
+### `no black-background section found`
+
+The clip you passed with `--clip` only has the green or blue take. The renderer
+will not key it: see Step 7 for why. Use the one in `assets/`, or composite your
+green version onto black once in an editor and export that.
+
+### A different clip opens or closes at the wrong moment
+
+The frame numbers in Step 8 describe the animation in `assets/`, not portals
+generally. For another clip, step through it and find three things: the frame
+where the arc finishes drawing (`--open-end`), a pair of frames in the steady
+part that look alike enough to cut between (`--loop-start`, `--loop-end`), and
+the first frame where the ring genuinely starts shrinking (`--shrink-start`).
+
+### A faintly lit rectangle on the wall
+
+The projector is being told to emit something everywhere, not nothing. Raise
+`--black-floor` a couple of levels at a time until it goes. It defaults to 2,
+which is enough for the clip we tested; a noisier export may need more.
+
+If it persists at a high floor, check the projector's own brightness and contrast
+settings, which sometimes lift blacks on their own.
+
+### The webcam runs at about 5fps
+
+You are on the DirectShow backend. On the laptop we tested, DirectShow delivers
+1080p at 5fps and 720p at 10fps from a camera that does 1080p at 31fps through
+Media Foundation. Do not pass `--dshow`; it exists only as a fallback.
+
+### The opening looks choppy, but the loop and the close are smooth
+
+Openness arrives with the Bluetooth packets, about ten times a second, while the
+renderer draws forty or more. `--open-smoothing` fills in the frames between
+updates and defaults to 0.05 seconds. If you have set it to 0, put it back.
+
+### The opening looks sped up
+
+`--open-speed` caps how fast the arc may draw, as a multiple of the clip's own
+rate. At 1.0, a quick gesture hands over and the animation finishes itself at the
+speed it was animated. Raising it lets a fast gesture drag the animation along
+faster, which is snappier but blurs the spark trace.
+
+### The camera feed stops short of the rim
+
+`--fill` sets how far the feed reaches toward the ring, as a fraction of the rim
+radius. It defaults to 0.98, which tucks the edge just under the brightest part
+of the rim so the ring's own light hides the seam. Lower it and a dark band
+opens up, which reads as a video window rather than a hole.
+
 ### Tests pass but say `skipped`
 
 The golden tests skip when the CSV files are missing rather than failing. If you
@@ -458,10 +659,22 @@ host/portal/simulate.py   the portal state machine: open, closed and latching
 host/portal/live.py       live portal driven from the ring over Bluetooth
 host/portal/stream_client.py   connect, display and record
 host/portal/plot.py       turn a recording into a diagnostic plot
+host/portal/ring.py       openness for the renderer: from the ring, or replayed
+host/portal/render.py     the portal itself: camera in the ring, ring on top
 host/tests/               detector and portal tests, including golden tests
 
-assets/                   the printable case
+assets/                   the printable case, and the portal clip
 ```
+
+The clip in `assets/` is a stock green screen pack by Filmcom Creation, included
+so the defaults in `render.py` line up with something you actually have. It is
+theirs, not ours; if you are reusing this repo for something you intend to
+publish, check their terms rather than assuming this repo's licence covers it.
+
+The split between the last two host modules is the useful one. `render.py` knows
+nothing about Bluetooth or gestures; its entire input is one number between 0 and
+1. `ring.py` is what produces that number, from the ring or from a recording.
+Either can be replaced without touching the other.
 
 ## A note on what is in here
 
@@ -473,6 +686,13 @@ rigid, so a large gyro reading would be good evidence that the motion was *not*
 the gesture. Then we measured it, and found 108 to 118 degrees per second of
 wrist rock during a perfectly good gesture. That check would have rejected the
 real thing every time, so it was cut.
+
+The renderer has the same shape. The loop points are not chosen by eye: every
+pair of frames in the clip was scored, and frame 219 goes back to 165 because
+those two differ about as much as any two consecutive frames do. The black level
+is 2 because 26 percent of the clip's corner pixels sit at value 1 and only
+0.017 percent exceed 2. The sparks hard-cut across the loop seam while the glow
+dissolves, because blending both measured worse than blending neither.
 
 There are a few more of these documented in the code comments, where a threshold
 or a design choice is explained by the measurement that produced it rather than by

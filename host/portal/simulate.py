@@ -36,7 +36,10 @@ from .plot import load_capture
 # Measured on the Phase 1 captures: the clockwise gesture reports direction -1,
 # counter-clockwise +1. The sign is anchored to the sensor frame, so it is only
 # meaningful for a ring mounted the same way round. Re-check after remounting.
-OPENING_SENSE = -1
+#
+# +1 means counter-clockwise opens the portal and clockwise closes it, which is
+# how Strange does it on screen.
+OPENING_SENSE = +1
 
 CLOSED, OPENING, OPEN, CLOSING = "CLOSED", "OPENING", "OPEN", "CLOSING"
 

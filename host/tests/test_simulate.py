@@ -49,7 +49,7 @@ def test_starts_closed():
     assert sm.openness == 0.0
 
 
-def test_full_clockwise_gesture_opens():
+def test_full_counter_clockwise_gesture_opens():
     sm = PortalState(FS)
     drive(sm, 1.0, OPENING_SENSE)
     assert sm.latched == OPEN
@@ -86,7 +86,7 @@ def test_open_portal_survives_the_hand_dropping():
     assert sm.openness == pytest.approx(1.0)
 
 
-def test_counter_clockwise_closes_an_open_portal():
+def test_clockwise_closes_an_open_portal():
     sm = PortalState(FS)
     drive(sm, 1.0, OPENING_SENSE)
     sm._prev_arc = 0.0                # detector re-arms between gestures
@@ -104,7 +104,7 @@ def test_closing_also_commits():
     assert sm.latched == CLOSED, "closing must commit the same way opening does"
 
 
-def test_counter_clockwise_at_a_closed_portal_does_nothing():
+def test_clockwise_at_a_closed_portal_does_nothing():
     """You cannot close what is already shut, however long you circle."""
     sm = PortalState(FS)
     drive(sm, 1.0, CLOSING_SENSE, samples=500)
@@ -112,7 +112,7 @@ def test_counter_clockwise_at_a_closed_portal_does_nothing():
     assert sm.openness == pytest.approx(0.0)
 
 
-def test_clockwise_at_an_open_portal_does_nothing():
+def test_counter_clockwise_at_an_open_portal_does_nothing():
     sm = PortalState(FS)
     drive(sm, 1.0, OPENING_SENSE)
     sm._prev_arc = 0.0
@@ -144,10 +144,10 @@ def _load(name):
     return t, acc
 
 
-def test_real_clockwise_opens_once_and_stays_open():
-    """cw_short is seven clockwise repetitions. The first opens the portal; the
-    other six must do nothing, because it is already open."""
-    t, acc = _load("cw_short.csv")
+def test_real_counter_clockwise_opens_once_and_stays_open():
+    """ccw_short is repeated counter-clockwise circles, as Strange opens a
+    portal. The first opens it; the rest must do nothing, it is already open."""
+    t, acc = _load("ccw_short.csv")
     states, _open, _res, _fs = simulate(t, acc)
     ev = transitions(states)
     assert len(ev) == 1
@@ -155,8 +155,9 @@ def test_real_clockwise_opens_once_and_stays_open():
     assert states[-1] == OPEN
 
 
-def test_real_counter_clockwise_alone_never_opens():
-    t, acc = _load("ccw_short.csv")
+def test_real_clockwise_alone_never_opens():
+    """Clockwise is the closing gesture; it cannot open a shut portal."""
+    t, acc = _load("cw_short.csv")
     states, opens, _res, _fs = simulate(t, acc)
     assert transitions(states) == []
     assert opens.max() < 0.4
@@ -174,9 +175,9 @@ def test_negatives_never_change_portal_state(name):
 
 
 def test_real_round_trip_opens_then_closes():
-    """Clockwise then counter-clockwise, on real data end to end."""
-    ta, aa = _load("cw_short.csv")
-    tb, ab = _load("ccw_short.csv")
+    """Counter-clockwise then clockwise, on real data end to end."""
+    ta, aa = _load("ccw_short.csv")
+    tb, ab = _load("cw_short.csv")
     t = np.concatenate([ta, tb + ta[-1] + 0.01])
     acc = np.vstack([aa, ab])
     states, _open, _res, _fs = simulate(t, acc)

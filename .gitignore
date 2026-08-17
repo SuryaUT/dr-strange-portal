@@ -13,7 +13,8 @@ __pycache__/
 *.pyc
 .pytest_cache/
 
-# Python
-__pycache__/
-*.pyc
-.pytest_cache/
+# Throwaway renders and working files
+scratch/
+
+# The renderer's derived cache: rebuilt from the clip on first run, ~58MB
+*.portalcache.npz
