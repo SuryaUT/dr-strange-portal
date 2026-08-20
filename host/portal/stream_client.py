@@ -21,6 +21,13 @@ from portal.decode import decode_packet
 DEVICE_NAME = "StrangeRing"
 STREAM_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
 
+# The key ring: a second, separate board worn on the other hand, whose only job
+# is to say whether it is being worn. One byte, 1 = armed. Its UUIDs live here
+# beside the portal ring's so that every Bluetooth identifier in the project is
+# in one place. Both are read by `portal.ring`.
+KEY_DEVICE_NAME = "StrangeKey"
+KEY_STATE_UUID = "6e401003-b5a3-f393-e0a9-e50e24dcca9e"
+
 CSV_HEADER = ["host_time_s", "device_ms", "seq", "ax_g", "ay_g", "az_g",
               "gx_dps", "gy_dps", "gz_dps"]
 

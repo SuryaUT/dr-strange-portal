@@ -3,10 +3,11 @@
     python -m portal.live                      # live portal state
     python -m portal.live --csv session.csv    # and record the raw stream
     python -m portal.live --debug              # show the gate internals
+    python -m portal.live --no-key             # without the key ring
 
 Prints what the portal should be doing, right now, from real gestures:
 clockwise opens it, counter-clockwise closes it, and it holds state when your
-hand stops. This is the same Detector and PortalState the offline simulation
+hand stops. The key ring on the other hand must be armed or nothing moves. This is the same Detector and PortalState the offline simulation
 uses -- `test_detector_is_causal_and_streaming` pins the streaming path to be
 sample-identical to the batch one, so what you see here is what the recorded
 captures produce.
@@ -34,7 +35,17 @@ def bar(openness: float, width: int = 28) -> str:
     return "#" * filled + "-" * (width - filled)
 
 
-async def run(csv_path: str | None, debug: bool) -> int:
+async def run(csv_path: str | None, debug: bool, use_key: bool) -> int:
+    # The key ring runs on its own thread and its own connection, exactly as it
+    # does under the renderer, so this tool shows the same gating the projector
+    # will. Without it this display would happily report portals the renderer
+    # refuses to draw.
+    key = None
+    if use_key:
+        from portal.ring import KeySource
+        key = KeySource().start()
+        print(f"scanning for {key.device_name} (the key ring)...")
+
     print(f"scanning for {DEVICE_NAME}...")
     device = await BleakScanner.find_device_by_name(DEVICE_NAME, timeout=15.0)
     if device is None:
@@ -67,11 +78,15 @@ async def run(csv_path: str | None, debug: bool) -> int:
         stats.note(pkt.seq, len(pkt.samples))
         host_time = time.monotonic()
 
+        # Sampled once per packet: one consistent answer for the whole batch
+        # beats a gate that could flip partway through it.
+        armed = True if key is None else key.armed
+
         frame = None
         for i, s in enumerate(pkt.samples):
             ax, ay, az, gx, gy, gz = s
             frame = det.push((ax, ay, az))      # gyro deliberately unused
-            now, openness = portal.push(frame)
+            now, openness = portal.push(frame, armed=armed)
 
             if now != state["last"] and now in (OPEN, CLOSED):
                 held = host_time - state["since"]
@@ -94,7 +109,8 @@ async def run(csv_path: str | None, debug: bool) -> int:
 
         # One display update per packet (~10 Hz); per-sample would flicker.
         sense = {1: "ccw", -1: "cw ", 0: "   "}[frame.direction]
-        line = (f"\r{portal.latched:<6} [{bar(portal.openness)}] "
+        gate = "" if key is None else ("KEY " if armed else "----")
+        line = (f"\r{gate}{portal.latched:<6} [{bar(portal.openness)}] "
                 f"{portal.openness * 100:3.0f}%  {sense}")
         if debug:
             line += (f"  circ {frame.circularity:4.2f} "
@@ -115,6 +131,8 @@ async def run(csv_path: str | None, debug: bool) -> int:
     except KeyboardInterrupt:
         pass
     finally:
+        if key is not None:
+            key.stop()
         if csv_file is not None:
             csv_file.close()
         print()
@@ -131,9 +149,12 @@ def main() -> int:
     ap.add_argument("--csv", help="also record the raw stream to this file")
     ap.add_argument("--debug", action="store_true",
                     help="show circularity, stability, radius and gate state")
+    ap.add_argument("--no-key", action="store_true",
+                    help="ignore the key ring and let the gesture open the "
+                         "portal on its own")
     args = ap.parse_args()
     try:
-        return asyncio.run(run(args.csv, args.debug))
+        return asyncio.run(run(args.csv, args.debug, use_key=not args.no_key))
     except KeyboardInterrupt:
         return 0
 

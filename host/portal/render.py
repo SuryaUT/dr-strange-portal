@@ -459,6 +459,24 @@ def list_displays():
     return monitors
 
 
+def list_cameras(limit=6):
+    """Every camera index that opens, with the size it hands back.
+
+    Probing is the only reliable way to find a phone acting as a connected
+    camera: it turns up as an ordinary index with no way to know which one in
+    advance.
+    """
+    found = []
+    for index in range(limit):
+        cap = cv2.VideoCapture(index, cv2.CAP_ANY)
+        if cap.isOpened():
+            ok, frame = cap.read()
+            if ok and frame is not None:
+                found.append((index, frame.shape[1], frame.shape[0]))
+        cap.release()
+    return found
+
+
 def choose_display(monitors, index):
     """The monitor to put the portal on, or None if there are none to pick.
 
@@ -800,9 +818,17 @@ def open_source(args):
     if args.ring and args.replay:
         raise SystemExit("error: pass --ring or --replay, not both")
     if args.ring:
-        from .ring import RingSource
+        from .ring import KeySource, RingSource
+        # The key ring gates the portal ring: no key worn, no portal, however
+        # good the circle. --no-key drops the gate for bring-up and for filming
+        # when the key ring's battery is flat.
+        key = None
+        if not args.no_key:
+            print("waiting for the key ring...")
+            key = KeySource().start()
         print("waiting for the ring...")
         return RingSource(
+            key=key,
             on_event=lambda st: print(f"  portal {st}", flush=True)).start()
     if args.replay:
         from .ring import ReplaySource
@@ -930,6 +956,9 @@ def main(argv=None):
         description="Portal preview: camera feed inside the ring, ring light on top.",
         formatter_class=argparse.RawDescriptionHelpFormatter, epilog=HELP)
     ap.add_argument("--clip", help="portal clip (default: the one in assets/)")
+    ap.add_argument("--no-key", action="store_true",
+                    help="ignore the key ring and let --ring open the portal "
+                         "on its own")
     ap.add_argument("--ring", action="store_true",
                     help="drive openness from the ring over BLE: "
                          "counter-clockwise opens, clockwise closes")
@@ -998,6 +1027,8 @@ def main(argv=None):
                          "The animation runs on the clock either way, so a cap "
                          "only makes it choppier")
     ap.add_argument("--fullscreen", action="store_true", help="start fullscreen")
+    ap.add_argument("--list-cameras", action="store_true",
+                    help="probe the camera indices that work, then exit")
     ap.add_argument("--list-displays", action="store_true",
                     help="print the attached monitors and their indices, "
                          "then exit")
@@ -1012,6 +1043,13 @@ def main(argv=None):
     ap.set_defaults(mirror=True)
     ap.add_argument("--stats", action="store_true", help="overlay openness and fps")
     args = ap.parse_args(argv)
+    if args.list_cameras:
+        cams = list_cameras()
+        if not cams:
+            print("no cameras opened")
+        for index, w, h in cams:
+            print(f"  --camera {index}   {w}x{h}")
+        return 0
     if args.list_displays:
         monitors = list_displays()
         if not monitors:

@@ -86,7 +86,7 @@ class PortalState:
         self._committed = 0      # +1 finishing open, -1 finishing closed
         self._commit_step = 1.0 / max(self.cfg.commit_time_s * fs, 1.0)
 
-    def push(self, frame) -> tuple[str, float]:
+    def push(self, frame, armed: bool = True) -> tuple[str, float]:
         c = self.cfg
         was = self.openness
         # The detector's accumulator only ever counts forward, so its per-sample
@@ -102,6 +102,20 @@ class PortalState:
         # about *which way* is not a reason to forget that the hand is moving.
         if frame.direction != 0:
             self._last_dir = frame.direction
+
+        # The key ring. Without it the hand is simply not listened to: progress
+        # is dropped and any commit abandoned, so the sample falls through to
+        # the decay branch and openness returns to whatever we are latched at.
+        #
+        # `_prev_arc` is still advanced above, and that ordering is the whole
+        # trick. The detector keeps accumulating while disarmed, so if the rise
+        # were left untracked the first armed sample would see the entire
+        # disarmed gesture as one delta and slam the portal open with no arc
+        # ever drawn. Consuming the rise and discarding it means re-arming
+        # resumes from zero progress, as though the gesture had just begun.
+        if not armed:
+            delta = 0.0
+            self._committed = 0
 
         # No gate test here. The detector already applied it: a rise in its
         # accumulator IS gated progress. Re-testing the gate on this side threw

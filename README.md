@@ -18,6 +18,13 @@ The portal itself is a fullscreen window on a second display, meant to be thrown
 onto a wall by a projector, with a live camera feed showing through the middle of
 the ring. Steps 7 to 10 cover that half.
 
+There are **two rings**. The main one, on your gesture hand, holds the motion
+sensor and does everything described above. The second is a *key ring* worn on
+the other hand with a capacitive touch pad: the portal ignores the circle
+gesture unless the key is armed, so nobody opens a portal by accident. It is a
+separate board with separate firmware, covered in Step 2b, and the whole system
+runs happily without it if you skip that step.
+
 ## How it works
 
 When you swing your hand in a circle, your arm is doing something very specific:
@@ -37,6 +44,11 @@ If all three hold, the ring counts up how far around you have gone. Get about
 40 percent of the way and it commits, finishing the animation on its own so you
 do not have to keep circling.
 
+The key ring adds one more condition on top, but not a clever one: the portal
+simply ignores every sample while the key is disarmed. The detector keeps
+running underneath, so an armed gesture starts from a warm filter rather than a
+cold one.
+
 The nice part is that this rejects almost everything else you do with your hands
 for free. Waving is back and forth, so it fails the roundness test. Walking swings
 your arm in a lazy oval, which fails the stability test. We tested against 75
@@ -45,7 +57,7 @@ apartment, and got zero false portals.
 
 ## Bill of materials
 
-You only need four things.
+Four things for the main ring.
 
 | Part | Qty | Notes | Link |
 |---|---|---|---|
@@ -53,6 +65,15 @@ You only need four things.
 | HW-123 (MPU-6050) IMU module | 1 | The common little purple or blue breakout board | https://a.co/d/05waVxTH |
 | 120 mAh 3.7 V LiPo battery | 1 | Small enough to hide behind the boards | https://a.co/d/02xXPYqa |
 | Kapton tape | 1 roll | Polyimide tape. **Regular electrical tape will do** in a pinch but is bulkier | https://a.co/d/0bSA9tBP |
+
+Three more if you also want the key ring from Step 2b. Skip these and
+everything still works; you just lose the arming gate.
+
+| Part | Qty | Notes |
+|---|---|---|
+| Seeed XIAO ESP32-C3 | 1 | A second board, flashed with different firmware |
+| TTP223 capacitive touch breakout | 1 | The common single-pad module, three pins |
+| 3.7 V LiPo battery | 1 | Same as above |
 
 ## Tools
 
@@ -194,7 +215,7 @@ cd host && python -m pytest tests/ -q     # detector and portal tests
 This is the fastest way to know your soldering is good.
 
 ```bash
-pio run -e xiao_serial_test -t upload
+pio run -e portal_ring_serial -t upload
 pio device monitor
 ```
 
@@ -221,7 +242,7 @@ downstream will work until this line is happy.
 Now flash the normal firmware and see the data on your computer.
 
 ```bash
-pio run -e xiao_esp32c3 -t upload
+pio run -e portal_ring -t upload
 ```
 
 Then, from the `host` folder:
@@ -235,6 +256,75 @@ You should see live values and a rate of about 100 Hz with `drop 0`.
 The drop counter matters more than it looks. Dropped packets look exactly like
 your hand holding still, so a lossy link makes the detector miss gestures and
 makes it seem like the algorithm is broken when it is not.
+
+### Step 2b: The key ring
+
+A second, completely separate XIAO ESP32-C3 worn on the other hand acts as a
+key. The portal only responds to the circle gesture while the key ring is
+armed, so a stray circle drawn without it does nothing. It is its own board,
+its own firmware, and its own Bluetooth connection.
+
+| TTP223 pin | XIAO pin | Notes |
+| --- | --- | --- |
+| VCC | D9 | Driven high by the firmware, not tied to the 3V3 rail |
+| IO | D10 | Touch output |
+| GND | GND | |
+
+VCC goes to a GPIO rather than the 3V3 rail for historical reasons, explained
+in the limitation below. The firmware holds it high and never lets go.
+
+```bash
+pio run -e touch_ring -t upload
+pio device monitor
+```
+
+Touch the pad. You should see `ARMED`, and `DISARMED` when you let go.
+
+#### Known limitation: the pad disarms itself after 7 seconds
+
+The TTP223 detects *changes* in capacitance, not the presence of a finger, and
+it re-baselines its own reference roughly every 7 seconds. We measured that on
+this ring rather than trusting the datasheet, using the timestamps the firmware
+prints. Hold the pad longer than that and your finger becomes the new
+"untouched" zero, so the output reads released while you are still touching it.
+
+**The practical effect is that a touch arms the key ring for about 7 seconds,
+then it drops on its own.** That is fine in use, because the gesture takes
+about 1.2 seconds: touch the pad, draw the circle, done. But this ring cannot
+report sustained *wear*, and no firmware can see through it, because the
+baseline lives inside the chip.
+
+Two ways out if it ever matters, neither of them taken here:
+
+- **Toggle mode.** Bridging the solder pad marked `A` on the back of the
+  breakout straps the chip into a mode where the output latches on each touch
+  and holds indefinitely. Tap to arm, tap to disarm. The cost is that it stops
+  tracking whether the ring is actually on your finger at all.
+- **Skin contact.** Replace the TTP223 with two bare metal contacts on the
+  inside of the ring and read the resistance through your finger, somewhere
+  around 100 k to 1 M ohm. That measures presence directly, has no baseline to
+  drift, and is fewer parts than the breakout.
+
+One approach that does **not** work, in case it looks tempting: cutting the
+sensor's power to force it to re-calibrate. That is why VCC sits on a GPIO. It
+fails because re-calibrating while the pad is touched makes the touched state
+the new zero, so the sensor then reports "not touched" permanently. It destroys
+the signal it was meant to protect.
+
+#### Using it
+
+Both host tools gate on the key ring, and both take `--no-key` to run without
+it:
+
+```bash
+python -m portal.live              # shows KEY / ---- beside the portal state
+python -m portal.render --ring     # key state in the on-screen status line
+```
+
+Two behaviours are deliberate. The gate **fails closed**: no key connection
+means disarmed, because a ring that cannot be heard from is not a ring being
+worn. And disarming **holds an open portal** rather than slamming it shut, so a
+dropped Bluetooth packet cannot cut the portal out of a take.
 
 ### Step 3: Record your gesture
 
@@ -417,11 +507,21 @@ python -m portal.render --replay ccw_short.csv
 ### Step 9: Drive the portal from the ring
 
 ```bash
-python -m portal.render --ring
+python -m portal.render --ring --camera http://<phone-ip>:8081/video --stats
 ```
 
 Counter-clockwise opens it, clockwise closes it, and a hand that stops leaves it
-where it is. This is the same detector and the same state machine `portal.live`
+where it is. If you built the key ring in Step 2b, touch its pad first: the
+gesture does nothing while the key is disarmed. Add `--no-key` to bypass it.
+
+`--stats` puts both Bluetooth connections in the on-screen status line, which is
+what you want on a first run. You can confirm `key ARMED` and `ring connected`
+before you start circling, instead of guessing which half is broken. Drop it
+when you actually film.
+
+Power both rings before launching. The two connections are scanned for on
+separate threads, so you will see two "waiting for..." lines, and either can
+connect first. This is the same detector and the same state machine `portal.live`
 prints to the terminal, so anything you tuned in Step 5 applies here unchanged.
 
 Expect roughly two seconds between starting to circle and the portal beginning to
@@ -466,14 +566,41 @@ By default the disc shows your laptop webcam. Anything OpenCV can open works:
 
 ```bash
 python -m portal.render --camera 1                              # another webcam
-python -m portal.render --camera http://192.168.1.42:8080/video # a phone
+python -m portal.render --camera http://192.168.1.42:8081/video # a phone
 python -m portal.render --camera clips/other_room.mp4           # a recording
 ```
 
 For a phone, either turn on Windows 11's "use as a connected camera" and pass its
-index, or install any IP-webcam app and pass the URL it gives you. A stream that
-stalls will not freeze the portal: the camera is read on its own thread and the
-animation runs on the clock, so a slow feed just repeats a frame.
+index, or install an IP-webcam app and pass the URL it gives you. Any app that
+serves MJPEG over HTTP works; these are the usual ones:
+
+| Phone | App | Typical URL |
+|---|---|---|
+| iOS | **IP Camera Lite** (Shenyao Ke) | `http://<phone-ip>:8081/video` |
+| Android | **IP Webcam** (Pavel Khlebovich) | `http://<phone-ip>:8080/video` |
+
+**Only the iOS side is actually tested here**, because that is the phone we
+have. Android should work exactly the same way — it is a plain MJPEG stream over
+HTTP either way, and OpenCV does not care which phone produced it — but treat
+the Android row as untested.
+
+Two things to watch, both of which cost us time:
+
+- **The port and path are not the same between apps.** Note that IP Camera Lite
+  uses 8081 while IP Webcam uses 8080. Whatever the app shows on its own screen
+  is the address of a *web page*, not necessarily the raw stream; the stream is
+  usually that address with `/video` on the end.
+- **Turn the app's password off**, or put the credentials in the URL. IP Camera
+  Lite asks for an HTTP login by default, and a browser hides this from you by
+  remembering the password after the first time. OpenCV sends no credentials and
+  simply gets refused. See the troubleshooting entry on colour bars.
+
+Both phones need to be on the same network as the laptop. A phone hotspot the
+laptop is joined to works fine, and is often easier than getting two devices onto
+the same guest Wi-Fi.
+
+A stream that stalls will not freeze the portal: the camera is read on its own
+thread and the animation runs on the clock, so a slow feed just repeats a frame.
 
 Two things decide whether this reads as a hole in space or as a video window.
 **Point the camera somewhere the projection cannot reach**, or it films the wall
@@ -530,8 +657,60 @@ the detector the wrong thing.
 
 ### The portal never opens
 
-Run `python -m portal.live --debug` and see which gate is refusing, using the
-table in Step 5. In our experience `circ` is the one most likely to be marginal.
+First check the key ring, if you built one. `python -m portal.live` shows `KEY`
+when armed and `----` when not, and the portal ignores your hand entirely while
+it reads `----`. The gate fails closed on purpose, so a key ring with a flat
+battery, or one that never connected, looks exactly like a dead gesture
+detector. `--no-key` takes it out of the picture and tells you which half you
+are actually chasing.
+
+Remember the pad disarms itself about 7 seconds after you touch it. Touch,
+then circle; do not touch and then think about it.
+
+Then run `python -m portal.live --debug` and see which gate is refusing, using
+the table in Step 5. In our experience `circ` is the one most likely to be
+marginal.
+
+### `error: no device named StrangeKey found`
+
+The key ring is not advertising. Same checklist as the `StrangeRing` entry
+above: check it is powered, and that nothing else is already connected to it,
+because a BLE peripheral accepts one connection at a time.
+
+If you are running both `portal.live` and `portal.render` at once, that is the
+problem. They each open their own connection to both rings, and the second one
+to start will not get in.
+
+### The key ring arms, then disarms on its own after a few seconds
+
+Expected, and a hardware limitation of the TTP223 rather than a bug. It
+re-baselines its capacitance reference roughly every 7 seconds, so a held touch
+becomes the new "untouched" zero. Step 2b explains it and lists the two ways
+out if you need sustained wear detection.
+
+### The camera feed is colour bars, but the URL works in my browser
+
+Almost certainly authentication. Some phone webcam apps require an HTTP login,
+and your browser has the password saved from the first time you opened it;
+OpenCV sends no credentials and gets refused. IP Camera Lite on iOS does this by
+default. You can check from the command line:
+
+```bash
+curl -s -D - -o /dev/null http://<phone-ip>:8081/video
+```
+
+`401 Authorization Required` confirms it. Either turn the password off in the
+app, or put the credentials in the URL:
+
+```bash
+python -m portal.render --ring --camera "http://user:pass@<phone-ip>:8081/video"
+```
+
+The other common cause is the wrong path or port. The address that shows you a
+*page* in the browser is not the raw video stream. `/video` is the usual
+endpoint; some apps use `/videofeed`, `/live` or `/mjpeg`. IP Camera Lite serves
+on 8081 and IP Webcam on 8080, so do not copy a port from one app's docs into
+the other's URL.
 
 ### Open and close are backwards
 
@@ -649,7 +828,8 @@ paint are not.
 ## Repo layout
 
 ```
-src/main.cpp              firmware: read the sensor, stream over Bluetooth
+src/portal_ring/main.cpp  firmware: read the sensor, stream over Bluetooth
+src/touch_ring/main.cpp   firmware for the key ring: touch pad, armed byte
 lib/mpu6050/              sensor registers and scaling, unit tested
 lib/protocol/             the wire format, shared with the Python side
 test/                     firmware unit tests, run with pio test -e native
@@ -670,6 +850,18 @@ The clip in `assets/` is a stock green screen pack by Filmcom Creation, included
 so the defaults in `render.py` line up with something you actually have. It is
 theirs, not ours; if you are reusing this repo for something you intend to
 publish, check their terms rather than assuming this repo's licence covers it.
+
+Both firmwares live in one PlatformIO project and are told apart by
+`build_src_filter`, so each environment compiles only its own folder under
+`src/` and the two boards can never accidentally share code. `lib/` is shared
+by both. The environments are:
+
+| Environment | Board | What it does |
+|---|---|---|
+| `portal_ring` | gesture ring | The real firmware: IMU over Bluetooth |
+| `portal_ring_serial` | gesture ring | Same, plus live sensor values on serial for bring-up |
+| `touch_ring` | key ring | Touch pad state as one byte over Bluetooth |
+| `native` | your computer | Firmware unit tests, no hardware needed |
 
 The split between the last two host modules is the useful one. `render.py` knows
 nothing about Bluetooth or gestures; its entire input is one number between 0 and
@@ -693,6 +885,20 @@ those two differ about as much as any two consecutive frames do. The black level
 is 2 because 26 percent of the clip's corner pixels sit at value 1 and only
 0.017 percent exceed 2. The sparks hard-cut across the loop seam while the glow
 dissolves, because blending both measured worse than blending neither.
+
+The key ring is the same story told backwards, and it is worth reading Step 2b
+even if you never build one. The plan was to power the touch sensor from a GPIO
+and cut it briefly once a second, forcing the chip's auto-calibration to happen
+at a moment we controlled. It cannot work, and measuring is what showed why: the
+TTP223 senses *change*, not presence, so re-calibrating while the pad is touched
+adopts the touched state as its new zero. Power cycling would have made the
+sensor report "not worn" permanently. The pin is still a GPIO, held high forever,
+as a fossil of the idea.
+
+What shipped instead is the plain sensor with its 7-second limitation documented
+rather than engineered around, because the gesture takes 1.2 seconds and 7 is
+enough. The two real fixes, toggle mode and skin contact, are written up in Step
+2b for anyone who needs sustained wear detection.
 
 There are a few more of these documented in the code comments, where a threshold
 or a design choice is explained by the measurement that produced it rather than by
