@@ -182,28 +182,33 @@ the case. Put it in for good once the software side works.
 
 ### Wiring
 
-**Top**
-<img width="3024" height="4032" alt="IMG_9396" src="https://github.com/user-attachments/assets/cc567806-0690-4f4f-9f41-0cdc6de72278" />
+#### Top
 
-**Bottom**
-<img width="3024" height="4032" alt="IMG_9395" src="https://github.com/user-attachments/assets/bb30a043-feec-4169-80b0-74501fccc527" />
+<img width="3024" alt="IMG_9396" src="https://github.com/user-attachments/assets/cc567806-0690-4f4f-9f41-0cdc6de72278" />
+
+#### Bottom
+
+<img width="3024" alt="IMG_9395" src="https://github.com/user-attachments/assets/bb30a043-feec-4169-80b0-74501fccc527" />
 
 ### Assembly
 
-**Antenna in Lid**
-<img width="1080" height="812" alt="image" src="https://github.com/user-attachments/assets/68eadd0c-c4d0-4c6c-9dd4-269ace875189" />
+#### Antenna in Lid
 
-**Curl Antenna Cable**
-<img width="1063" height="802" alt="image" src="https://github.com/user-attachments/assets/f794c2f9-d571-4491-8887-598753b73429" />
+<img width="1080" alt="image" src="https://github.com/user-attachments/assets/68eadd0c-c4d0-4c6c-9dd4-269ace875189" />
 
-**Slide Electronics and Lid in Place**
+#### Curl Antenna Cable
 
-<img width="517" height="549" alt="image" src="https://github.com/user-attachments/assets/c9c9badf-5bfd-4556-951d-221d1a5aa75d" />
+<img width="1063" alt="image" src="https://github.com/user-attachments/assets/f794c2f9-d571-4491-8887-598753b73429" />
 
-**Snap in Lid**
+#### Slide Electronics and Lid in Place
 
-<img width="358" height="434" alt="image" src="https://github.com/user-attachments/assets/c7bef141-c269-47ed-acce-ea75e9b546f9" /> <img width="479" height="576" alt="image" src="https://github.com/user-attachments/assets/afa0fa42-75ad-4b75-8a5f-368f1836aef4" />
+<img width="517" alt="image" src="https://github.com/user-attachments/assets/c9c9badf-5bfd-4556-951d-221d1a5aa75d" />
 
+#### Snap in Lid
+
+<img width="358" alt="image" src="https://github.com/user-attachments/assets/c7bef141-c269-47ed-acce-ea75e9b546f9" />
+
+<img width="479" alt="image" src="https://github.com/user-attachments/assets/afa0fa42-75ad-4b75-8a5f-368f1836aef4" />
 
 ## Software
 
