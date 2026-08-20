@@ -89,6 +89,14 @@ everything still works; you just lose the arming gate.
 - X-acto knife
 - Multimeter (worth it, see the troubleshooting section)
 
+**For the portal half (Steps 7 to 10)**
+
+- A projector, and a second HDMI output to drive it. Filming the portal thrown
+  onto a wall looks far better than filming a screen.
+- A phone running an IP-webcam app, for the live feed inside the disc. A laptop
+  webcam works too, but the phone is what lets you point the destination at
+  another room. See [What the portal looks onto](#what-the-portal-looks-onto).
+
 ## Part 1: Wire the IMU to the XIAO
 
 Four connections. That is the whole circuit.
