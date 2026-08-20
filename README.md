@@ -10,12 +10,12 @@ the way Strange does it on screen.
 It takes about one and a half turns, roughly 1.2 seconds, and it stays open
 after you drop your hand.
 
-Everything here is open source. The electronics are three parts, the case prints
+Everything here is open source. The electronics are three parts per ring (plus some optional stuff), the case prints
 in one go on any hobby printer, and the whole thing runs on a battery the size of
 a postage stamp.
 
 The portal itself is a fullscreen window on a second display, meant to be thrown
-onto a wall by a projector, with a live camera feed showing through the middle of
+onto a wall by a projector (but a monitor screen or TV will work just fine!), with a live camera feed showing through the middle of
 the ring. Steps 7 to 10 cover that half.
 
 There are **two rings**. The main one, on your gesture hand, holds the motion
@@ -23,7 +23,7 @@ sensor and does everything described above. The second is a *key ring* worn on
 the other hand with a capacitive touch pad: the portal ignores the circle
 gesture unless the key is armed, so nobody opens a portal by accident. It is a
 separate board with separate firmware, covered in Step 2b, and the whole system
-runs happily without it if you skip that step.
+runs happily without it if you skip that step or just don't want the key ring.
 
 ## How it works
 
@@ -69,11 +69,11 @@ Four things for the main ring.
 Three more if you also want the key ring from Step 2b. Skip these and
 everything still works; you just lose the arming gate.
 
-| Part | Qty | Notes |
+| Part | Qty | Notes | Link |
 |---|---|---|
-| Seeed XIAO ESP32-C3 | 1 | A second board, flashed with different firmware |
-| TTP223 capacitive touch breakout | 1 | The common single-pad module, three pins |
-| 3.7 V LiPo battery | 1 | Same as above |
+| Seeed XIAO ESP32-C3 | 1 | A second board, flashed with different firmware | (same as above) |
+| TTP223 capacitive touch breakout | 1 | The common single-pad module, three pins | https://a.co/d/0gzV0g5f |
+| 3.7 V LiPo battery | 1 | (same as above) | (same as above) |
 
 ## Tools
 
@@ -88,14 +88,6 @@ everything still works; you just lose the arming gate.
 - Hot glue gun
 - X-acto knife
 - Multimeter (worth it, see the troubleshooting section)
-
-**For the portal half (Steps 7 to 10)**
-
-- A projector, and a second HDMI output to drive it. Filming the portal thrown
-  onto a wall looks far better than filming a screen.
-- A phone running an IP-webcam app, for the live feed inside the disc. A laptop
-  webcam works too, but the phone is what lets you point the destination at
-  another room. See [What the portal looks onto](#what-the-portal-looks-onto).
 
 ## Part 1: Wire the IMU to the XIAO
 
@@ -160,27 +152,27 @@ Slicer settings:
 Then remove all the supports once it comes off the bed.
 
 PETG is a better choice than PLA here. The snap fit and the thin finger bands
-will crack in PLA over time.
+will crack in PLA over time. (I still used PLA lol, so don't worry if you don't have PETG).
 
 ## Part 6: Fit the lid
 
-The lid should slide into the body. If it does not, that is expected on a print
+The lid should slide into the body and snap into place. If it does not, that is expected on a print
 this small.
 
-The tiny tabs on the USB-C port side are usually the culprit. Melt them back a
+The tiny snap tabs on the USB-C port side are usually the culprit. Melt them back a
 little at a time using a hot glue gun tip or an old soldering iron tip you do not
 mind ruining. Test the snap fit after every pass.
 
 Go slowly. You can always remove more material, but you cannot put it back.
 
-## Part 7: Put the electronics in
+## Part 7: Put the electronics in (see [images](#images))
 
-1. Place the antenna flat in the rectangular divot in the lid.
+1. Place the antenna flat in the rectangular divot in the lid. (Cable side down)
 2. Curl the antenna cable until it fits inside the cavity. You may need to tuck
    it under the electronics.
 3. Do not put a sharp bend in the cable. Coax hates that, and a kinked antenna
    cable will quietly halve your Bluetooth range.
-4. Test the fit.
+4. Test the fit. By placing the electronics, sliding in the lid, and snapping it in place.
 
 **Take the electronics back out before you start testing.** You will be plugging
 in USB, reflashing, and possibly rewiring, and all of that is far easier outside
@@ -188,11 +180,28 @@ the case. Put it in for good once the software side works.
 
 ## Images
 
-### Top
+### Wiring
+
+**Top**
 <img width="3024" height="4032" alt="IMG_9396" src="https://github.com/user-attachments/assets/cc567806-0690-4f4f-9f41-0cdc6de72278" />
 
-### Bottom
+**Bottom**
 <img width="3024" height="4032" alt="IMG_9395" src="https://github.com/user-attachments/assets/bb30a043-feec-4169-80b0-74501fccc527" />
+
+### Assembly
+
+**Antenna in Lid**
+<img width="1080" height="812" alt="image" src="https://github.com/user-attachments/assets/68eadd0c-c4d0-4c6c-9dd4-269ace875189" />
+
+**Curl Antenna Cable**
+<img width="1063" height="802" alt="image" src="https://github.com/user-attachments/assets/f794c2f9-d571-4491-8887-598753b73429" />
+
+**Slide Electronics and Lid in Place**
+<img width="517" height="549" alt="image" src="https://github.com/user-attachments/assets/c9c9badf-5bfd-4556-951d-221d1a5aa75d" />
+
+**Snap in Lid**
+<img width="358" height="434" alt="image" src="https://github.com/user-attachments/assets/c7bef141-c269-47ed-acce-ea75e9b546f9" /> <img width="479" height="576" alt="image" src="https://github.com/user-attachments/assets/afa0fa42-75ad-4b75-8a5f-368f1836aef4" />
+
 
 ## Software
 
@@ -586,6 +595,8 @@ serves MJPEG over HTTP works; these are the usual ones:
 |---|---|---|
 | iOS | **IP Camera Lite** (Shenyao Ke) | `http://<phone-ip>:8081/video` |
 | Android | **IP Webcam** (Pavel Khlebovich) | `http://<phone-ip>:8080/video` |
+
+**Note:** URL should be displayed in app
 
 **Only the iOS side is actually tested here**, because that is the phone we
 have. Android should work exactly the same way — it is a plain MJPEG stream over
